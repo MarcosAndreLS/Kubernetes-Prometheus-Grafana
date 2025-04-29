@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: flask-deployment
+  template:
+    metadata:
+      labels:
+        app: flask-deployment
+    spec:
+      containers:
+      - name: flask-deployment
+        image: python:3.9-slim
+        command: ["/bin/sh"]
+        args: ["-c", "pip install flask && python /app/app.py"]
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+        - name: app-code
+          mountPath: /app
+        livenessProbe:
+          httpGet:
+            path: / # Endpoint para verificar saúde
+            port: 5000
+          initialDelaySeconds: 40  # Atraso inicial
+          periodSeconds: 10        # Frequência da verificação
+   # Número de falhas antes de reiniciar
+        readinessProbe:
+          httpGet:
+            path: / # Endpoint para verificar prontidão
+            port: 5000
+          initialDelaySeconds: 30   # Atraso inicial
+          periodSeconds: 5         # Frequência da verificação
+        resources:
+          requests:
+            cpu: "100m"
+          limits:
+            cpu: "250m"  # Número de falhas antes de marcar como não pronto
+      volumes:
+        - name: app-code
+          configMap:
+            name: flask-app-code
+          
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-deployment
+spec:
+  selector:
+    app: flask-deployment
+  ports:
+    - port: 5000
+      targetPort: 5000
+      nodePort: 30036
+  type: NodePort
